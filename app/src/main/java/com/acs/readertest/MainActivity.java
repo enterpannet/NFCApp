@@ -12,9 +12,11 @@ package com.acs.readertest;
 import android.Manifest;
 import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.ServiceConnection;
 import android.content.pm.PackageManager;
 import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbManager;
@@ -23,7 +25,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
-import android.os.Looper;
+import android.os.IBinder;
 import android.provider.Settings;
 import android.util.Log;
 import android.view.View;
@@ -52,7 +54,7 @@ import java.util.TimerTask;
 /**
  * แอพสำหรับอ่านการ์ด NFC ด้วย ACR122U และเปิดไฟล์ PDF ที่เชื่อมโยงกับการ์ด
  */
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends AppCompatActivity implements CardReaderService.CardReaderListener {
 
     private static final String TAG = "MainActivity";
     private static final String ACTION_USB_PERMISSION = "com.acs.readertest.USB_PERMISSION";
@@ -118,6 +120,35 @@ public class MainActivity extends AppCompatActivity {
                     logMessage("เครื่องอ่านถูกถอด: " + device.getDeviceName());
                 }
             }
+        }
+    };
+
+    // Service connection
+    private CardReaderService mCardReaderService;
+    private boolean mBound = false;
+    private androidx.appcompat.widget.SwitchCompat switchBackgroundMode;
+
+    // ServiceConnection สำหรับเชื่อมต่อกับ CardReaderService
+    private final ServiceConnection mConnection = new ServiceConnection() {
+        @Override
+        public void onServiceConnected(ComponentName name, IBinder service) {
+            CardReaderService.LocalBinder binder = (CardReaderService.LocalBinder) service;
+            mCardReaderService = binder.getService();
+            mBound = true;
+            
+            // ตั้งค่า listener เพื่อรับการแจ้งเตือนจาก service
+            mCardReaderService.setListener(MainActivity.this);
+            
+            // อัปเดต UI ตามสถานะปัจจุบันของ service
+            updateUIFromService();
+            
+            logMessage("เชื่อมต่อกับบริการอ่านการ์ดสำเร็จ");
+        }
+
+        @Override
+        public void onServiceDisconnected(ComponentName name) {
+            mBound = false;
+            logMessage("ยกเลิกการเชื่อมต่อกับบริการอ่านการ์ด");
         }
     };
 
@@ -253,6 +284,16 @@ public class MainActivity extends AppCompatActivity {
                     startFloatingButtonService();
                 } else {
                     stopFloatingButtonService();
+                }
+            });
+            
+            // ตั้งค่าสวิตช์โหมดพื้นหลัง
+            switchBackgroundMode = findViewById(R.id.switch_background_mode);
+            switchBackgroundMode.setOnCheckedChangeListener((buttonView, isChecked) -> {
+                if (isChecked) {
+                    startBackgroundService();
+                } else {
+                    stopBackgroundService();
                 }
             });
             
@@ -866,5 +907,117 @@ public class MainActivity extends AppCompatActivity {
         Intent serviceIntent = new Intent(this, FloatingButtonService.class);
         stopService(serviceIntent);
         logMessage("หยุดการทำงานของปุ่มลอยแล้ว");
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        
+        // เชื่อมต่อกับ CardReaderService ถ้าไม่ได้เชื่อมต่ออยู่แล้ว
+        if (!mBound) {
+            Intent intent = new Intent(this, CardReaderService.class);
+            bindService(intent, mConnection, Context.BIND_AUTO_CREATE);
+        }
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        
+        // ยกเลิกการเชื่อมต่อกับ CardReaderService
+        if (mBound) {
+            mCardReaderService.setListener(null);
+            unbindService(mConnection);
+            mBound = false;
+        }
+    }
+
+    /**
+     * อัปเดต UI จากสถานะของ service
+     */
+    private void updateUIFromService() {
+        if (mBound && mCardReaderService != null) {
+            boolean isReaderConnected = mCardReaderService.isReaderConnected();
+            String lastCardId = mCardReaderService.getLastCardId();
+            
+            runOnUiThread(() -> {
+                // อัปเดตสถานะเครื่องอ่าน
+                if (isReaderConnected) {
+                    tvReaderStatus.setText("เชื่อมต่อแล้ว (ทำงานในพื้นหลัง)");
+                    btnConnectReader.setEnabled(false);
+                }
+                
+                // อัปเดต ID การ์ด
+                if (lastCardId != null) {
+                    tvCardId.setText(lastCardId);
+                }
+            });
+        }
+    }
+    
+    /**
+     * เริ่มการทำงานของ CardReaderService
+     */
+    private void startBackgroundService() {
+        logMessage("เริ่มบริการอ่านการ์ดในพื้นหลัง");
+        
+        Intent serviceIntent = new Intent(this, CardReaderService.class);
+        
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            startForegroundService(serviceIntent);
+        } else {
+            startService(serviceIntent);
+        }
+        
+        // ปิดการทำงานของการอ่านการ์ดในหน้า UI
+        if (mReaderOpened) {
+            new Thread(() -> closeReader()).start();
+        }
+        
+        // ปิดการใช้งานปุ่มเชื่อมต่อเครื่องอ่านในหน้า UI
+        btnConnectReader.setEnabled(false);
+        btnReadCard.setEnabled(false);
+    }
+    
+    /**
+     * หยุดการทำงานของ CardReaderService
+     */
+    private void stopBackgroundService() {
+        logMessage("หยุดบริการอ่านการ์ดในพื้นหลัง");
+        
+        Intent serviceIntent = new Intent(this, CardReaderService.class);
+        stopService(serviceIntent);
+        
+        // เปิดการใช้งานปุ่มเชื่อมต่อเครื่องอ่านในหน้า UI
+        btnConnectReader.setEnabled(true);
+        btnReadCard.setEnabled(true);
+    }
+
+    // Implement CardReaderListener methods
+    
+    @Override
+    public void onReaderStatusChanged(boolean connected, String readerName) {
+        runOnUiThread(() -> {
+            tvReaderName.setText(readerName);
+            tvReaderStatus.setText(connected ? "เชื่อมต่อแล้ว (ทำงานในพื้นหลัง)" : "ไม่ได้เชื่อมต่อ");
+            logMessage("สถานะเครื่องอ่านเปลี่ยนเป็น: " + (connected ? "เชื่อมต่อแล้ว" : "ไม่ได้เชื่อมต่อ"));
+        });
+    }
+
+    @Override
+    public void onCardDetected(String cardId) {
+        runOnUiThread(() -> {
+            tvCardId.setText(cardId);
+            logMessage("ตรวจพบการ์ด (จากบริการพื้นหลัง): " + cardId);
+        });
+    }
+
+    @Override
+    public void onPdfOpened(String cardId, String pdfPath) {
+        runOnUiThread(() -> {
+            File file = new File(pdfPath);
+            tvPdfFile.setText(file.getName());
+            logMessage("เปิดไฟล์ PDF (จากบริการพื้นหลัง): " + file.getName());
+        });
     }
 }

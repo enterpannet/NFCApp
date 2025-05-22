@@ -17,6 +17,8 @@
     <!-- Permission for displaying floating button -->
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
     <application
         android:allowBackup="true"
@@ -50,6 +52,23 @@
             android:name=".FloatingButtonService"
             android:enabled="true"
             android:exported="false" />
+        
+        <!-- Card Reader Background Service -->
+        <service
+            android:name=".CardReaderService"
+            android:enabled="true"
+            android:foregroundServiceType="specialUse"
+            android:exported="false" />
+        
+        <!-- Boot Receiver for starting service on device boot -->
+        <receiver
+            android:name=".BootReceiver"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
         
         <provider
             android:name="androidx.core.content.FileProvider"
