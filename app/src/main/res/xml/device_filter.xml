@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- ACR122U USB Reader -->
+    <usb-device vendor-id="1839" product-id="8704" />
+    <!-- รายการอื่นๆ ของ ACS readers -->
+    <usb-device vendor-id="1839" product-id="8709" />
+    <usb-device vendor-id="1839" product-id="8711" />
+    <usb-device vendor-id="1839" product-id="8712" />
+    <usb-device vendor-id="1839" product-id="8713" />
+</resources> 
