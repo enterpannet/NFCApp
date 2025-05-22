@@ -37,6 +37,8 @@ import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 
 import com.acs.smartcard.Reader;
 
@@ -77,6 +79,10 @@ public class MainActivity extends AppCompatActivity {
     private CardPdfMapping cardPdfMapping;
     private Timer cardPollingTimer;
     private String lastCardId = null;
+    private String lastOpenedPdfForCardId = null;
+
+    // ActivityResultLauncher สำหรับเปิดไฟล์ PDF
+    private ActivityResultLauncher<Intent> pdfLauncher;
 
     // BroadcastReceiver สำหรับจัดการ USB events
     private final BroadcastReceiver mReceiver = new BroadcastReceiver() {
@@ -122,6 +128,9 @@ public class MainActivity extends AppCompatActivity {
         try {
             setContentView(R.layout.activity_main);
 
+            // ลงทะเบียน ActivityResultLauncher สำหรับเปิดไฟล์ PDF
+            registerPdfLauncher();
+            
             // ตั้งค่า UI elements
             initializeUIElements();
             
@@ -130,6 +139,9 @@ public class MainActivity extends AppCompatActivity {
             
             // เริ่มต้นขอสิทธิ์การเข้าถึง Storage
             requestStoragePermission();
+            
+            // ขอสิทธิ์การแสดงหน้าต่างลอย
+            checkOverlayPermission();
             
             // ตรวจสอบและสร้างโฟลเดอร์สำหรับเก็บไฟล์ PDF ถ้ายังไม่มี
             createTestPdfFiles();
@@ -233,6 +245,17 @@ public class MainActivity extends AppCompatActivity {
             tvStatusMessage = findViewById(R.id.tv_status_message);
             btnReadCard = findViewById(R.id.btn_read_card);
             tvLogContent = findViewById(R.id.tv_log_content);
+            
+            // ตั้งค่าสวิตช์ควบคุมปุ่มลอย
+            androidx.appcompat.widget.SwitchCompat switchFloatingButton = findViewById(R.id.switch_floating_button);
+            switchFloatingButton.setOnCheckedChangeListener((buttonView, isChecked) -> {
+                if (isChecked) {
+                    startFloatingButtonService();
+                } else {
+                    stopFloatingButtonService();
+                }
+            });
+            
         } catch (Exception e) {
             Log.e(TAG, "เกิดข้อผิดพลาดในการตั้งค่า UI: ", e);
             throw e; // โยนข้อผิดพลาดให้จัดการที่ onCreate
@@ -515,12 +538,33 @@ public class MainActivity extends AppCompatActivity {
                 tvCardId.setText("ไม่พบการ์ด");
                 tvPdfFile.setText("-");
                 tvStatusMessage.setText("ไม่พบการ์ดบนเครื่องอ่าน");
+                
+                // รีเซ็ตสถานะเมื่อไม่พบการ์ด
+                lastCardId = null;
+                lastOpenedPdfForCardId = null;
             });
         } catch (Exception e) {
             Log.e(TAG, "เกิดข้อผิดพลาดในการอ่านการ์ด", e);
             logMessage("เกิดข้อผิดพลาดในการอ่านการ์ด: " + e.getMessage());
             runOnUiThread(() -> tvStatusMessage.setText("เกิดข้อผิดพลาดในการอ่านการ์ด"));
         }
+    }
+
+    /**
+     * ลงทะเบียน ActivityResultLauncher สำหรับเปิดไฟล์ PDF
+     */
+    private void registerPdfLauncher() {
+        pdfLauncher = registerForActivityResult(
+            new ActivityResultContracts.StartActivityForResult(),
+            result -> {
+                // กลับมาที่แอพหลังจากเปิดไฟล์ PDF
+                logMessage("กลับมาที่แอพหลังจากดูไฟล์ PDF แล้ว");
+                // ทำการรีเฟรชหน้าจอหรือแสดงข้อความให้กับผู้ใช้
+                runOnUiThread(() -> {
+                    tvStatusMessage.setText("กลับมาจากการดู PDF แล้ว");
+                });
+            }
+        );
     }
 
     /**
@@ -534,7 +578,6 @@ public class MainActivity extends AppCompatActivity {
             }
             
             Log.d(TAG, "ประมวลผลข้อมูลการ์ด: " + cardId);
-            lastCardId = cardId;
             
             // แสดง card ID บน UI
             final String finalCardId = cardId;
@@ -555,6 +598,13 @@ public class MainActivity extends AppCompatActivity {
             if (pdfPath != null) {
                 // พบ PDF ที่เชื่อมโยงกับการ์ด
                 String fileName = new File(pdfPath).getName();
+                
+                // ตรวจสอบว่าเป็นการ์ดเดิมและเปิดไฟล์ PDF ไปแล้วหรือไม่
+                if (cardId.equals(lastCardId) && (cardId + ":" + pdfPath).equals(lastOpenedPdfForCardId)) {
+                    logMessage("ข้าม: ไฟล์ PDF นี้ถูกเปิดไปแล้วสำหรับการ์ดนี้");
+                    return;
+                }
+                
                 logMessage("พบไฟล์ PDF ที่เชื่อมโยงกับการ์ด: " + fileName);
                 
                 final String finalPdfPath = pdfPath;
@@ -564,9 +614,13 @@ public class MainActivity extends AppCompatActivity {
                     tvPdfFile.setText(finalFileName);
                     tvStatusMessage.setText("พบไฟล์ PDF ที่เชื่อมโยงกับการ์ด กำลังเปิด...");
                     
-                    // เปิดไฟล์ PDF
-                    if (PdfHelper.openPdf(MainActivity.this, finalPdfPath)) {
+                    // เปิดไฟล์ PDF โดยใช้ ActivityResultLauncher พร้อมปุ่มกลับและตัวจับเวลา
+                    if (PdfHelper.openPdf(MainActivity.this, finalPdfPath, pdfLauncher, true, 120)) {
                         tvStatusMessage.setText("เปิดไฟล์ PDF สำเร็จ");
+                        
+                        // บันทึกว่าได้เปิดไฟล์นี้ไปแล้วสำหรับการ์ดนี้
+                        lastCardId = cardId;
+                        lastOpenedPdfForCardId = cardId + ":" + finalPdfPath;
                     } else {
                         tvStatusMessage.setText("ไม่สามารถเปิดไฟล์ PDF ได้");
                     }
@@ -758,5 +812,59 @@ public class MainActivity extends AppCompatActivity {
             Toast.makeText(this, title + ": " + message, Toast.LENGTH_LONG).show();
             Log.e(TAG, "ไม่สามารถแสดง Error Dialog ได้: " + e.getMessage());
         }
+    }
+
+    /**
+     * ตรวจสอบและขอสิทธิ์การแสดงหน้าต่างลอย (SYSTEM_ALERT_WINDOW)
+     */
+    private void checkOverlayPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            if (!Settings.canDrawOverlays(this)) {
+                logMessage("ต้องการสิทธิ์ในการแสดงหน้าต่างลอยเพื่อแสดงปุ่มกลับ");
+                
+                new AlertDialog.Builder(this)
+                    .setTitle("ต้องการสิทธิ์เพิ่มเติม")
+                    .setMessage("แอพต้องการสิทธิ์ในการแสดงหน้าต่างลอยเพื่อแสดงปุ่มกลับขณะดู PDF")
+                    .setPositiveButton("ตั้งค่า", (dialog, which) -> {
+                        Intent intent = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                                Uri.parse("package:" + getPackageName()));
+                        startActivity(intent);
+                    })
+                    .setNegativeButton("ข้าม", (dialog, which) -> {
+                        dialog.dismiss();
+                        logMessage("ผู้ใช้ข้ามการตั้งค่าสิทธิ์การแสดงหน้าต่างลอย");
+                    })
+                    .show();
+            } else {
+                logMessage("มีสิทธิ์การแสดงหน้าต่างลอยแล้ว");
+            }
+        }
+    }
+
+    /**
+     * เริ่มการทำงานของ FloatingButtonService
+     */
+    private void startFloatingButtonService() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(this)) {
+            checkOverlayPermission();
+            return;
+        }
+        
+        Intent serviceIntent = new Intent(this, FloatingButtonService.class);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            startForegroundService(serviceIntent);
+        } else {
+            startService(serviceIntent);
+        }
+        logMessage("เริ่มการทำงานของปุ่มลอยแล้ว");
+    }
+    
+    /**
+     * หยุดการทำงานของ FloatingButtonService
+     */
+    private void stopFloatingButtonService() {
+        Intent serviceIntent = new Intent(this, FloatingButtonService.class);
+        stopService(serviceIntent);
+        logMessage("หยุดการทำงานของปุ่มลอยแล้ว");
     }
 }
