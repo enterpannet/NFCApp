@@ -1,0 +1,342 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res/auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:padding="16dp"
+    tools:context=".SettingsActivity">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <!-- Header with back button -->
+        <LinearLayout
+            android:id="@+id/header_layout"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="16dp">
+
+            <Button
+                android:id="@+id/btn_back"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="← กลับ"
+                android:textSize="16sp"
+                android:background="@android:color/transparent"
+                android:textColor="#9C27B0" />
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="⚙️ การตั้งค่า NFC"
+                android:textSize="20sp"
+                android:textStyle="bold"
+                android:gravity="center"
+                android:textColor="#9C27B0" />
+
+            <View
+                android:layout_width="80dp"
+                android:layout_height="wrap_content" />
+
+        </LinearLayout>
+
+        <!-- Image Selection Section -->
+        <androidx.cardview.widget.CardView
+            android:id="@+id/card_image_selection"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="📷 การจัดการรูปภาพ"
+                    android:textStyle="bold"
+                    android:textSize="18sp"
+                    android:layout_marginBottom="8dp" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:weightSum="2">
+
+                    <Button
+                        android:id="@+id/btn_select_image"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="📁 เลือกรูปภาพ"
+                        android:textSize="14sp"
+                        android:layout_marginRight="8dp"
+                        android:backgroundTint="#2196F3"
+                        android:textColor="@android:color/white" />
+
+                    <Button
+                        android:id="@+id/btn_clear_image"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="🗑️ ล้างรูป"
+                        android:textSize="14sp"
+                        android:layout_marginLeft="8dp"
+                        android:backgroundTint="#FF5722"
+                        android:textColor="@android:color/white" />
+
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/tv_selected_image_info"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="ยังไม่ได้เลือกรูปภาพ"
+                    android:textSize="12sp"
+                    android:textColor="#666666"
+                    android:layout_marginTop="8dp"
+                    android:textAlignment="center" />
+
+                <!-- Image Preview -->
+                <ImageView
+                    android:id="@+id/iv_image_preview"
+                    android:layout_width="match_parent"
+                    android:layout_height="200dp"
+                    android:layout_marginTop="8dp"
+                    android:scaleType="centerInside"
+                    android:background="#F0F0F0"
+                    android:visibility="gone"
+                    android:adjustViewBounds="true" />
+
+                <!-- Apply Button for Image -->
+                <Button
+                    android:id="@+id/btn_apply_image"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="✅ ใช้รูปนี้และกลับหน้าหลัก"
+                    android:textSize="14sp"
+                    android:layout_marginTop="8dp"
+                    android:backgroundTint="#4CAF50"
+                    android:textColor="@android:color/white"
+                    android:visibility="gone" />
+
+            </LinearLayout>
+        </androidx.cardview.widget.CardView>
+
+        <!-- Reader Status Section -->
+        <androidx.cardview.widget.CardView
+            android:id="@+id/card_reader_status"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="🔌 สถานะเครื่องอ่านการ์ด"
+                    android:textStyle="bold"
+                    android:textSize="18sp"
+                    android:layout_marginBottom="8dp" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="เครื่องอ่าน:"
+                    android:textStyle="bold"
+                    android:textSize="14sp" />
+
+                <TextView
+                    android:id="@+id/tv_reader_name"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="ไม่ได้เชื่อมต่อ"
+                    android:textSize="14sp"
+                    android:layout_marginBottom="4dp" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="สถานะ:"
+                    android:textStyle="bold"
+                    android:textSize="14sp" />
+
+                <TextView
+                    android:id="@+id/tv_reader_status"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="กำลังตรวจสอบ..."
+                    android:textSize="14sp"
+                    android:layout_marginBottom="8dp" />
+
+                <Button
+                    android:id="@+id/btn_connect_reader"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="🔗 เชื่อมต่อเครื่องอ่านการ์ด"
+                    android:backgroundTint="#4CAF50" />
+
+            </LinearLayout>
+        </androidx.cardview.widget.CardView>
+
+        <!-- Card Info Section -->
+        <androidx.cardview.widget.CardView
+            android:id="@+id/card_card_info"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="📋 ข้อมูลการ์ด"
+                    android:textStyle="bold"
+                    android:textSize="18sp"
+                    android:layout_marginBottom="8dp" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="UID/NDEF:"
+                    android:textStyle="bold"
+                    android:textSize="14sp" />
+
+                <TextView
+                    android:id="@+id/tv_card_id"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="รอการอ่านการ์ด..."
+                    android:textSize="14sp"
+                    android:layout_marginBottom="4dp" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="ไฟล์ PDF:"
+                    android:textStyle="bold"
+                    android:textSize="14sp" />
+
+                <TextView
+                    android:id="@+id/tv_pdf_file"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="-"
+                    android:textSize="14sp"
+                    android:layout_marginBottom="8dp" />
+
+                <TextView
+                    android:id="@+id/tv_status_message"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text=""
+                    android:textColor="#E91E63"
+                    android:textAlignment="center"
+                    android:layout_marginBottom="8dp" />
+
+                <Button
+                    android:id="@+id/btn_read_card"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="📖 อ่านการ์ด"
+                    android:backgroundTint="#FF9800" />
+
+            </LinearLayout>
+        </androidx.cardview.widget.CardView>
+
+        <!-- Controls Section -->
+        <androidx.cardview.widget.CardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="🎛️ การควบคุม"
+                    android:textStyle="bold"
+                    android:textSize="18sp"
+                    android:layout_marginBottom="8dp" />
+
+                <androidx.appcompat.widget.SwitchCompat
+                    android:id="@+id/switch_floating_button"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="แสดงปุ่มลอยตลอดเวลา"
+                    android:textStyle="bold"
+                    android:layout_marginBottom="8dp"
+                    android:checked="false" />
+
+                <androidx.appcompat.widget.SwitchCompat
+                    android:id="@+id/switch_background_mode"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="ทำงานในพื้นหลัง"
+                    android:textStyle="bold"
+                    android:layout_marginBottom="8dp"
+                    android:checked="false" />
+
+            </LinearLayout>
+        </androidx.cardview.widget.CardView>
+
+        <!-- Log Section -->
+        <androidx.cardview.widget.CardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="📝 บันทึกการทำงาน"
+                    android:textStyle="bold"
+                    android:textSize="18sp"
+                    android:layout_marginBottom="8dp" />
+
+                <TextView
+                    android:id="@+id/tv_log_content"
+                    android:layout_width="match_parent"
+                    android:layout_height="150dp"
+                    android:text=""
+                    android:fontFamily="monospace"
+                    android:textSize="12sp"
+                    android:background="#F5F5F5"
+                    android:padding="8dp"
+                    android:scrollbars="vertical" />
+
+            </LinearLayout>
+        </androidx.cardview.widget.CardView>
+
+    </LinearLayout>
+</ScrollView> 

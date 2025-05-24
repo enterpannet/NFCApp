@@ -47,6 +47,15 @@
                 android:resource="@xml/device_filter" />
         </activity>
         
+        <activity
+            android:name=".SettingsActivity"
+            android:exported="false"
+            android:parentActivityName=".MainActivity">
+            <meta-data
+                android:name="android.support.PARENT_ACTIVITY"
+                android:value=".MainActivity" />
+        </activity>
+        
         <!-- Floating Button Service -->
         <service
             android:name=".FloatingButtonService"

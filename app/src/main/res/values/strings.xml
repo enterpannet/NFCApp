@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">Reader Test</string>
+    <string name="app_name">NFC Card</string>
     <string name="ok">OK</string>
     <string name="cancel">Cancel</string>
     <string name="verify_pin">Verify PIN</string>
