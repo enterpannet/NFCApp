@@ -233,7 +233,7 @@
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="ไฟล์ PDF:"
+                    android:text="ไฟล์สื่อ:"
                     android:textStyle="bold"
                     android:textSize="14sp" />
 
@@ -301,6 +301,16 @@
                     android:textStyle="bold"
                     android:layout_marginBottom="8dp"
                     android:checked="false" />
+
+                <Button
+                    android:id="@+id/btn_manage_cards"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="🗃️ จัดการข้อมูลการ์ด"
+                    android:textSize="14sp"
+                    android:backgroundTint="#9C27B0"
+                    android:textColor="@android:color/white"
+                    android:layout_marginTop="8dp" />
 
             </LinearLayout>
         </androidx.cardview.widget.CardView>

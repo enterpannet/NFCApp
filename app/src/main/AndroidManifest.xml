@@ -56,6 +56,15 @@
                 android:value=".MainActivity" />
         </activity>
         
+        <activity
+            android:name=".CardManagementActivity"
+            android:exported="false"
+            android:parentActivityName=".SettingsActivity">
+            <meta-data
+                android:name="android.support.PARENT_ACTIVITY"
+                android:value=".SettingsActivity" />
+        </activity>
+        
         <!-- Floating Button Service -->
         <service
             android:name=".FloatingButtonService"

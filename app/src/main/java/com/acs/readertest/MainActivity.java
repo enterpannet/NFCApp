@@ -72,9 +72,9 @@ public class MainActivity extends AppCompatActivity implements CardReaderService
     private boolean mBound = false;
     
     // Card PDF Mapping
-    private CardPdfMapping cardPdfMapping;
+    private CardMediaMapping cardMediaMapping;
     private String lastCardId = null;
-    private String lastOpenedPdfForCardId = null;
+    private String lastOpenedMediaForCardId = null;
     
     // ServiceConnection สำหรับเชื่อมต่อกับ CardReaderService
     private final ServiceConnection mConnection = new ServiceConnection() {
@@ -231,17 +231,17 @@ public class MainActivity extends AppCompatActivity implements CardReaderService
      */
     private void initializeCardMapping() {
         try {
-            cardPdfMapping = new CardPdfMapping();
-            boolean mappingLoaded = cardPdfMapping.loadMapping(this);
+            cardMediaMapping = new CardMediaMapping();
+            boolean mappingLoaded = cardMediaMapping.loadMapping(this);
             if (mappingLoaded) {
                 Log.d(TAG, "โหลด mapping สำเร็จ");
             } else {
                 Log.w(TAG, "ไม่สามารถโหลด mapping ได้");
-                cardPdfMapping = new CardPdfMapping(); // สร้าง mapping ว่างเปล่า
+                cardMediaMapping = new CardMediaMapping(); // สร้าง mapping ว่างเปล่า
             }
         } catch (Exception e) {
             Log.e(TAG, "เกิดข้อผิดพลาดในการโหลด mapping: ", e);
-            cardPdfMapping = new CardPdfMapping(); // สร้าง mapping ว่างเปล่า
+            cardMediaMapping = new CardMediaMapping(); // สร้าง mapping ว่างเปล่า
         }
     }
 
@@ -641,7 +641,7 @@ public class MainActivity extends AppCompatActivity implements CardReaderService
         runOnUiThread(() -> {
             Log.d(TAG, "ตรวจพบการ์ด: " + cardId);
             
-            // ประมวลผลข้อมูลการ์ดและเปิด PDF
+            // ประมวลผลข้อมูลการ์ดและเปิดไฟล์สื่อที่เชื่อมโยง
             processCardInfo(cardId);
         });
     }
@@ -656,7 +656,7 @@ public class MainActivity extends AppCompatActivity implements CardReaderService
     }
 
     /**
-     * ประมวลผลข้อมูลการ์ดที่ตรวจพบและเปิดไฟล์ PDF ที่เชื่อมโยง
+     * ประมวลผลข้อมูลการ์ดที่ตรวจพบและเปิดไฟล์สื่อที่เชื่อมโยง
      */
     private void processCardInfo(String cardId) {
         try {
@@ -670,69 +670,86 @@ public class MainActivity extends AppCompatActivity implements CardReaderService
             
             Log.d(TAG, "ประมวลผลข้อมูลการ์ด: " + cardId);
             
-            // ตรวจสอบ CardPdfMapping
-            if (cardPdfMapping == null) {
-                Log.e(TAG, "cardPdfMapping เป็น null");
-                showMessage("ไม่สามารถเชื่อมโยงการ์ดกับไฟล์ PDF ได้");
+            // ตรวจสอบ CardMediaMapping
+            if (cardMediaMapping == null) {
+                Log.e(TAG, "cardMediaMapping เป็น null");
+                showMessage("ไม่สามารถเชื่อมโยงการ์ดกับไฟล์สื่อได้");
                 return;
             }
             
-            Log.d(TAG, "cardPdfMapping พร้อมใช้งาน");
+            Log.d(TAG, "cardMediaMapping พร้อมใช้งาน");
             
-            // ค้นหา PDF ที่เชื่อมโยงกับการ์ด
-            String pdfPath = cardPdfMapping.findPdfForCard(cardId);
-            Log.d(TAG, "ผลการค้นหา PDF: " + pdfPath);
+            // ค้นหาสื่อที่เชื่อมโยงกับการ์ด
+            String mediaPath = cardMediaMapping.findMediaForCard(cardId);
+            Log.d(TAG, "ผลการค้นหาสื่อ: " + mediaPath);
             
-            if (pdfPath != null) {
-                // พบ PDF ที่เชื่อมโยงกับการ์ด
-                String fileName = new File(pdfPath).getName();
-                Log.d(TAG, "พบไฟล์ PDF: " + fileName);
+            if (mediaPath != null) {
+                // พบสื่อที่เชื่อมโยงกับการ์ด
+                MediaHelper.MediaInfo mediaInfo = MediaHelper.createMediaInfo(mediaPath);
+                Log.d(TAG, "พบสื่อ: " + mediaInfo.displayName + " ประเภท: " + mediaInfo.type);
                 
-                // ตรวจสอบว่าเป็นการ์ดเดิมและเปิดไฟล์ PDF ไปแล้วหรือไม่
-                String currentCardPdfKey = cardId + ":" + pdfPath;
+                // ตรวจสอบว่าเป็นการ์ดเดิมและเปิดไฟล์สื่อไปแล้วหรือไม่
+                String currentCardMediaKey = cardId + ":" + mediaPath;
                 Log.d(TAG, "lastCardId: " + lastCardId);
-                Log.d(TAG, "lastOpenedPdfForCardId: " + lastOpenedPdfForCardId);
-                Log.d(TAG, "currentCardPdfKey: " + currentCardPdfKey);
+                Log.d(TAG, "lastOpenedMediaForCardId: " + lastOpenedMediaForCardId);
+                Log.d(TAG, "currentCardMediaKey: " + currentCardMediaKey);
                 
-                if (cardId.equals(lastCardId) && currentCardPdfKey.equals(lastOpenedPdfForCardId)) {
-                    Log.d(TAG, "ข้าม: ไฟล์ PDF นี้ถูกเปิดไปแล้วสำหรับการ์ดนี้");
+                if (cardId.equals(lastCardId) && currentCardMediaKey.equals(lastOpenedMediaForCardId)) {
+                    Log.d(TAG, "ข้าม: สื่อนี้ถูกเปิดไปแล้วสำหรับการ์ดนี้");
                     return;
                 }
                 
-                Log.d(TAG, "พบไฟล์ PDF ที่เชื่อมโยงกับการ์ด: " + fileName);
-                showMessage("กำลังเปิด: " + fileName);
+                Log.d(TAG, "พบสื่อที่เชื่อมโยงกับการ์ด: " + mediaInfo.displayName + " (" + mediaInfo.type + ")");
+                showMessage("กำลังเปิด: " + mediaInfo.displayName);
                 
-                // ตรวจสอบว่าไฟล์มีอยู่จริงหรือไม่
-                File pdfFile = new File(pdfPath);
-                if (!pdfFile.exists()) {
-                    Log.e(TAG, "ไฟล์ PDF ไม่มีอยู่: " + pdfPath);
-                    showMessage("ไฟล์ PDF ไม่มีอยู่: " + fileName);
-                    return;
+                // ตรวจสอบว่าไฟล์มีอยู่จริงหรือไม่ (สำหรับไฟล์ local)
+                if (!mediaPath.startsWith("http://") && !mediaPath.startsWith("https://")) {
+                    File mediaFile = new File(mediaPath);
+                    if (!mediaFile.exists() && mediaInfo.type != MediaHelper.MediaType.WEB) {
+                        Log.e(TAG, "ไฟล์สื่อไม่มีอยู่: " + mediaPath);
+                        showMessage("ไฟล์สื่อไม่มีอยู่: " + mediaInfo.displayName);
+                        return;
+                    }
                 }
                 
-                Log.d(TAG, "ไฟล์ PDF มีอยู่, กำลังเปิด...");
+                Log.d(TAG, "ไฟล์สื่อพร้อมใช้งาน, กำลังเปิด...");
                 
-                // เปิดไฟล์ PDF โดยใช้ ActivityResultLauncher พร้อมปุ่มกลับและตัวจับเวลา
-                boolean openResult = PdfHelper.openPdf(this, pdfPath, pdfLauncher, true, 120);
-                Log.d(TAG, "ผลการเปิด PDF: " + openResult);
+                // เปิดสื่อโดยใช้ MediaHelper พร้อมปุ่มกลับและตัวจับเวลา
+                boolean openResult = MediaHelper.openMedia(this, mediaPath, pdfLauncher, true, 120);
+                Log.d(TAG, "ผลการเปิดสื่อ: " + openResult);
                 
                 if (openResult) {
-                    Log.d(TAG, "เปิดไฟล์ PDF สำเร็จ");
-                    showMessage("เปิดไฟล์ PDF สำเร็จ");
+                    Log.d(TAG, "เปิดสื่อสำเร็จ");
+                    String message = "";
+                    switch (mediaInfo.type) {
+                        case PDF:
+                            message = "เปิดไฟล์ PDF สำเร็จ";
+                            break;
+                        case VIDEO:
+                            message = "เปิดไฟล์วิดีโอสำเร็จ";
+                            break;
+                        case WEB:
+                            message = "เปิดเว็บไซต์สำเร็จ";
+                            break;
+                        default:
+                            message = "เปิดสื่อสำเร็จ";
+                            break;
+                    }
+                    showMessage(message);
                     
                     // บันทึกว่าได้เปิดไฟล์นี้ไปแล้วสำหรับการ์ดนี้
                     lastCardId = cardId;
-                    lastOpenedPdfForCardId = currentCardPdfKey;
-                    Log.d(TAG, "บันทึกสถานะการเปิด PDF แล้ว");
+                    lastOpenedMediaForCardId = currentCardMediaKey;
+                    Log.d(TAG, "บันทึกสถานะการเปิดสื่อแล้ว");
                 } else {
-                    Log.e(TAG, "ไม่สามารถเปิดไฟล์ PDF ได้");
-                    showMessage("ไม่สามารถเปิดไฟล์ PDF ได้");
+                    Log.e(TAG, "ไม่สามารถเปิดสื่อได้");
+                    showMessage("ไม่สามารถเปิดสื่อได้");
                 }
                 
             } else {
-                // ไม่พบ PDF ที่เชื่อมโยงกับการ์ด
-                Log.d(TAG, "ไม่พบไฟล์ PDF ที่เชื่อมโยงกับการ์ด: " + cardId);
-                showMessage("ไม่พบไฟล์ PDF สำหรับการ์ดนี้");
+                // ไม่พบสื่อที่เชื่อมโยงกับการ์ด
+                Log.d(TAG, "ไม่พบสื่อที่เชื่อมโยงกับการ์ด: " + cardId);
+                showMessage("ไม่พบสื่อสำหรับการ์ดนี้");
             }
             
             Log.d(TAG, "=== processCardInfo END ===");

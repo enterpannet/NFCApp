@@ -96,10 +96,11 @@ public class SettingsActivity extends AppCompatActivity implements CardReaderSer
     private int mSlotNum = 0;
     private boolean mReaderOpened = false;
     private NfcCardReader nfcCardReader;
-    private CardPdfMapping cardPdfMapping;
+    private CardMediaMapping cardMediaMapping;
     private Timer cardPollingTimer;
     private String lastCardId = null;
     private String lastOpenedPdfForCardId = null;
+    private String lastOpenedMediaForCardId = null;
 
     // ActivityResultLauncher สำหรับเปิดไฟล์ PDF
     private ActivityResultLauncher<Intent> pdfLauncher;
@@ -205,12 +206,12 @@ public class SettingsActivity extends AppCompatActivity implements CardReaderSer
             checkOverlayPermission();
             
             // ตรวจสอบและสร้างโฟลเดอร์สำหรับเก็บไฟล์ PDF ถ้ายังไม่มี
-            createTestPdfFiles();
+            createTestMediaFiles();
 
             // ตั้งค่า USB Manager และ Reader
             initializeReaderComponents();
 
-            // โหลด CardPdfMapping
+            // โหลด CardMediaMapping
             initializeCardMapping();
 
             // กำหนด Event Listeners
@@ -271,11 +272,11 @@ public class SettingsActivity extends AppCompatActivity implements CardReaderSer
         if (requestCode == REQUEST_STORAGE_PERMISSION) {
             if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                 logMessage("ได้รับสิทธิ์เข้าถึงพื้นที่จัดเก็บข้อมูลแล้ว");
-                createTestPdfFiles(); // สร้างไฟล์ PDF ตัวอย่างหลังจากได้รับสิทธิ์
+                createTestMediaFiles(); // สร้างไฟล์สื่อตัวอย่างหลังจากได้รับสิทธิ์
             } else {
                 logMessage("ไม่ได้รับสิทธิ์เข้าถึงพื้นที่จัดเก็บข้อมูล");
                 showErrorDialog("ต้องการสิทธิ์", 
-                    "แอปต้องการสิทธิ์ในการเข้าถึงพื้นที่จัดเก็บข้อมูลเพื่อสร้างและอ่านไฟล์ PDF");
+                    "แอปต้องการสิทธิ์ในการเข้าถึงพื้นที่จัดเก็บข้อมูลเพื่อสร้างและอ่านไฟล์สื่อ");
             }
         } else if (requestCode == REQUEST_MEDIA_PERMISSION) {
             if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
@@ -348,20 +349,20 @@ public class SettingsActivity extends AppCompatActivity implements CardReaderSer
      */
     private void initializeCardMapping() {
         try {
-            cardPdfMapping = new CardPdfMapping();
-            boolean mappingLoaded = cardPdfMapping.loadMapping(this);
+            cardMediaMapping = new CardMediaMapping();
+            boolean mappingLoaded = cardMediaMapping.loadMapping(this);
             if (mappingLoaded) {
                 Log.d(TAG, "โหลด mapping สำเร็จ");
-                logMessage("โหลดข้อมูลการเชื่อมโยงการ์ดกับไฟล์ PDF สำเร็จ");
+                logMessage("โหลดข้อมูลการเชื่อมโยงการ์ดกับไฟล์สื่อสำเร็จ");
             } else {
                 Log.w(TAG, "ไม่สามารถโหลด mapping ได้");
-                logMessage("ไม่สามารถโหลดข้อมูลการเชื่อมโยงการ์ดกับไฟล์ PDF ได้ ใช้ mapping ว่างเปล่าแทน");
-                showMessage("ไม่สามารถโหลดข้อมูลการเชื่อมโยงการ์ดกับไฟล์ PDF ได้");
+                logMessage("ไม่สามารถโหลดข้อมูลการเชื่อมโยงการ์ดกับไฟล์สื่อได้ ใช้ mapping ว่างเปล่าแทน");
+                showMessage("ไม่สามารถโหลดข้อมูลการเชื่อมโยงการ์ดกับไฟล์สื่อได้");
             }
         } catch (Exception e) {
             Log.e(TAG, "เกิดข้อผิดพลาดในการโหลด mapping: ", e);
             logMessage("เกิดข้อผิดพลาดในการโหลด mapping: " + e.getMessage());
-            cardPdfMapping = new CardPdfMapping(); // สร้าง mapping ว่างเปล่า
+            cardMediaMapping = new CardMediaMapping(); // สร้าง mapping ว่างเปล่า
         }
     }
 
@@ -458,6 +459,14 @@ public class SettingsActivity extends AppCompatActivity implements CardReaderSer
             } else {
                 showMessage("กรุณาเลือกรูปภาพก่อน");
             }
+        });
+        
+        // ปุ่มจัดการการ์ด
+        Button btnManageCards = findViewById(R.id.btn_manage_cards);
+        btnManageCards.setOnClickListener(v -> {
+            Intent intent = new Intent(this, CardManagementActivity.class);
+            startActivity(intent);
+            logMessage("เปิดหน้าจัดการการ์ด");
         });
     }
 
@@ -923,7 +932,7 @@ public class SettingsActivity extends AppCompatActivity implements CardReaderSer
     }
 
     /**
-     * ประมวลผลข้อมูลการ์ดที่อ่านได้และเชื่อมโยงกับไฟล์ PDF
+     * ประมวลผลข้อมูลการ์ดที่อ่านได้และเชื่อมโยงกับไฟล์สื่อ
      */
     private void processCardInfo(String cardId) {
         try {
@@ -938,56 +947,104 @@ public class SettingsActivity extends AppCompatActivity implements CardReaderSer
             final String finalCardId = cardId;
             runOnUiThread(() -> tvCardId.setText(finalCardId));
             
-            // ค้นหา PDF ที่เชื่อมโยงกับการ์ด
-            if (cardPdfMapping == null) {
-                Log.e(TAG, "cardPdfMapping เป็น null");
+            // ค้นหาสื่อที่เชื่อมโยงกับการ์ด
+            if (cardMediaMapping == null) {
+                Log.e(TAG, "cardMediaMapping เป็น null");
                 runOnUiThread(() -> {
                     tvPdfFile.setText("ไม่สามารถเชื่อมโยงได้");
-                    tvStatusMessage.setText("ไม่สามารถเชื่อมโยงการ์ดกับไฟล์ PDF ได้");
+                    tvStatusMessage.setText("ไม่สามารถเชื่อมโยงการ์ดกับไฟล์สื่อได้");
                 });
                 return;
             }
             
-            String pdfPath = cardPdfMapping.findPdfForCard(cardId);
+            String mediaPath = cardMediaMapping.findMediaForCard(cardId);
             
-            if (pdfPath != null) {
-                // พบ PDF ที่เชื่อมโยงกับการ์ด
-                String fileName = new File(pdfPath).getName();
+            if (mediaPath != null) {
+                // พบสื่อที่เชื่อมโยงกับการ์ด
+                MediaHelper.MediaInfo mediaInfo = MediaHelper.createMediaInfo(mediaPath);
                 
-                // ตรวจสอบว่าเป็นการ์ดเดิมและเปิดไฟล์ PDF ไปแล้วหรือไม่
-                if (cardId.equals(lastCardId) && (cardId + ":" + pdfPath).equals(lastOpenedPdfForCardId)) {
-                    logMessage("ข้าม: ไฟล์ PDF นี้ถูกเปิดไปแล้วสำหรับการ์ดนี้");
+                // ตรวจสอบว่าเป็นการ์ดเดิมและเปิดสื่อไปแล้วหรือไม่
+                if (cardId.equals(lastCardId) && (cardId + ":" + mediaPath).equals(lastOpenedMediaForCardId)) {
+                    logMessage("ข้าม: สื่อนี้ถูกเปิดไปแล้วสำหรับการ์ดนี้");
                     return;
                 }
                 
-                logMessage("พบไฟล์ PDF ที่เชื่อมโยงกับการ์ด: " + fileName);
+                logMessage("พบสื่อที่เชื่อมโยงกับการ์ด: " + mediaInfo.displayName + " (" + mediaInfo.type + ")");
                 
-                final String finalPdfPath = pdfPath;
-                final String finalFileName = fileName;
+                final String finalMediaPath = mediaPath;
+                final MediaHelper.MediaInfo finalMediaInfo = mediaInfo;
                 
                 runOnUiThread(() -> {
-                    tvPdfFile.setText(finalFileName);
-                    tvStatusMessage.setText("พบไฟล์ PDF ที่เชื่อมโยงกับการ์ด กำลังเปิด...");
+                    // แสดงชื่อไฟล์ที่เหมาะสม
+                    String displayText = finalMediaInfo.displayName;
+                    switch (finalMediaInfo.type) {
+                        case PDF:
+                            displayText = "📄 " + finalMediaInfo.displayName;
+                            break;
+                        case VIDEO:
+                            displayText = "🎬 " + finalMediaInfo.displayName;
+                            break;
+                        case WEB:
+                            displayText = "🌐 " + finalMediaInfo.displayName;
+                            break;
+                        default:
+                            displayText = "📁 " + finalMediaInfo.displayName;
+                            break;
+                    }
+                    tvPdfFile.setText(displayText);
                     
-                    // เปิดไฟล์ PDF โดยใช้ ActivityResultLauncher พร้อมปุ่มกลับและตัวจับเวลา
-                    if (PdfHelper.openPdf(SettingsActivity.this, finalPdfPath, pdfLauncher, true, 120)) {
-                        tvStatusMessage.setText("เปิดไฟล์ PDF สำเร็จ");
+                    // แสดงข้อความสถานะ
+                    String statusMessage = "";
+                    switch (finalMediaInfo.type) {
+                        case PDF:
+                            statusMessage = "พบไฟล์ PDF ที่เชื่อมโยงกับการ์ด กำลังเปิด...";
+                            break;
+                        case VIDEO:
+                            statusMessage = "พบไฟล์วิดีโอที่เชื่อมโยงกับการ์ด กำลังเปิด...";
+                            break;
+                        case WEB:
+                            statusMessage = "พบเว็บไซต์ที่เชื่อมโยงกับการ์ด กำลังเปิด...";
+                            break;
+                        default:
+                            statusMessage = "พบสื่อที่เชื่อมโยงกับการ์ด กำลังเปิด...";
+                            break;
+                    }
+                    tvStatusMessage.setText(statusMessage);
+                    
+                    // เปิดสื่อโดยใช้ MediaHelper พร้อมปุ่มกลับและตัวจับเวลา
+                    if (MediaHelper.openMedia(SettingsActivity.this, finalMediaPath, pdfLauncher, true, 120)) {
+                        String successMessage = "";
+                        switch (finalMediaInfo.type) {
+                            case PDF:
+                                successMessage = "เปิดไฟล์ PDF สำเร็จ";
+                                break;
+                            case VIDEO:
+                                successMessage = "เปิดไฟล์วิดีโอสำเร็จ";
+                                break;
+                            case WEB:
+                                successMessage = "เปิดเว็บไซต์สำเร็จ";
+                                break;
+                            default:
+                                successMessage = "เปิดสื่อสำเร็จ";
+                                break;
+                        }
+                        tvStatusMessage.setText(successMessage);
                         
                         // บันทึกว่าได้เปิดไฟล์นี้ไปแล้วสำหรับการ์ดนี้
                         lastCardId = cardId;
-                        lastOpenedPdfForCardId = cardId + ":" + finalPdfPath;
+                        lastOpenedMediaForCardId = cardId + ":" + finalMediaPath;
                     } else {
-                        tvStatusMessage.setText("ไม่สามารถเปิดไฟล์ PDF ได้");
+                        tvStatusMessage.setText("ไม่สามารถเปิดสื่อได้");
                     }
                 });
                 
             } else {
-                // ไม่พบ PDF ที่เชื่อมโยงกับการ์ด
-                logMessage("ไม่พบไฟล์ PDF ที่เชื่อมโยงกับการ์ด: " + cardId);
+                // ไม่พบสื่อที่เชื่อมโยงกับการ์ด
+                logMessage("ไม่พบสื่อที่เชื่อมโยงกับการ์ด: " + cardId);
                 
                 runOnUiThread(() -> {
                     tvPdfFile.setText("ไม่พบ");
-                    tvStatusMessage.setText("ไม่พบไฟล์ PDF ที่เชื่อมโยงกับการ์ดนี้");
+                    tvStatusMessage.setText("ไม่พบสื่อที่เชื่อมโยงกับการ์ดนี้");
                 });
             }
         } catch (Exception e) {
@@ -1069,7 +1126,7 @@ public class SettingsActivity extends AppCompatActivity implements CardReaderSer
                     }
                 } else {
                     logMessage("มีสิทธิ์ MANAGE_EXTERNAL_STORAGE แล้ว");
-                    createTestPdfFiles(); // สร้างไฟล์ PDF ตัวอย่างหลังจากได้รับสิทธิ์
+                    createTestMediaFiles(); // สร้างไฟล์สื่อตัวอย่างหลังจากได้รับสิทธิ์
                 }
             } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) { // Android 6-10
                 // ตรวจสอบและขอสิทธิ์
@@ -1086,12 +1143,12 @@ public class SettingsActivity extends AppCompatActivity implements CardReaderSer
                             REQUEST_STORAGE_PERMISSION);
                 } else {
                     logMessage("มีสิทธิ์เข้าถึงพื้นที่จัดเก็บข้อมูลแล้ว");
-                    createTestPdfFiles(); // สร้างไฟล์ PDF ตัวอย่างหลังจากได้รับสิทธิ์
+                    createTestMediaFiles(); // สร้างไฟล์สื่อตัวอย่างหลังจากได้รับสิทธิ์
                 }
             } else { // Android 5 หรือต่ำกว่า
                 // สิทธิ์จะถูกให้โดยอัตโนมัติตอนติดตั้ง
                 logMessage("Android 5.1 หรือต่ำกว่า ได้รับสิทธิ์โดยอัตโนมัติ");
-                createTestPdfFiles(); // สร้างไฟล์ PDF ตัวอย่าง
+                createTestMediaFiles(); // สร้างไฟล์สื่อตัวอย่าง
             }
         } catch (Exception e) {
             Log.e(TAG, "เกิดข้อผิดพลาดในการขอสิทธิ์", e);
@@ -1100,9 +1157,9 @@ public class SettingsActivity extends AppCompatActivity implements CardReaderSer
     }
 
     /**
-     * สร้างไฟล์ PDF ตัวอย่างสำหรับทดสอบ
+     * สร้างไฟล์สื่อตัวอย่างสำหรับทดสอบ (PDF, Video, Web)
      */
-    private void createTestPdfFiles() {
+    private void createTestMediaFiles() {
         new Thread(() -> {
             try {
                 // สร้างโฟลเดอร์ PDF
@@ -1110,6 +1167,13 @@ public class SettingsActivity extends AppCompatActivity implements CardReaderSer
                 if (!pdfFolder.exists()) {
                     boolean created = pdfFolder.mkdirs();
                     Log.d(TAG, "สร้างโฟลเดอร์ PDF: " + (created ? "สำเร็จ" : "ไม่สำเร็จ"));
+                }
+                
+                // สร้างโฟลเดอร์ Videos
+                File videoFolder = new File("/storage/emulated/0/Download/videos/");
+                if (!videoFolder.exists()) {
+                    boolean created = videoFolder.mkdirs();
+                    Log.d(TAG, "สร้างโฟลเดอร์ Videos: " + (created ? "สำเร็จ" : "ไม่สำเร็จ"));
                 }
                 
                 // สร้างไฟล์ PDF ตัวอย่าง
@@ -1120,12 +1184,38 @@ public class SettingsActivity extends AppCompatActivity implements CardReaderSer
                 createSamplePdfFile(pdfFolder, "science2.pdf", "นี่คือเนื้อหาของ Science 2");
                 createSamplePdfFile(pdfFolder, "math.pdf", "นี่คือเนื้อหาของ Math");
                 
-                runOnUiThread(() -> logMessage("สร้างไฟล์ PDF ตัวอย่างเรียบร้อยแล้ว"));
+                // สร้างไฟล์วิดีโอตัวอย่าง (แค่ไฟล์ว่างเพื่อทดสอบ)
+                createSampleVideoFile(videoFolder, "sample_video.mp4");
+                createSampleVideoFile(videoFolder, "presentation.mp4");
+                createSampleVideoFile(videoFolder, "tutorial.mp4");
+                createSampleVideoFile(videoFolder, "demo.avi");
+                
+                runOnUiThread(() -> logMessage("สร้างไฟล์สื่อตัวอย่างเรียบร้อยแล้ว (PDF และ Video)"));
             } catch (Exception e) {
-                Log.e(TAG, "เกิดข้อผิดพลาดในการสร้างไฟล์ PDF", e);
-                runOnUiThread(() -> logMessage("เกิดข้อผิดพลาดในการสร้างไฟล์ PDF: " + e.getMessage()));
+                Log.e(TAG, "เกิดข้อผิดพลาดในการสร้างไฟล์สื่อ", e);
+                runOnUiThread(() -> logMessage("เกิดข้อผิดพลาดในการสร้างไฟล์สื่อ: " + e.getMessage()));
             }
         }).start();
+    }
+    
+    /**
+     * สร้างไฟล์วิดีโอตัวอย่าง (ไฟล์ว่างเพื่อทดสอบ)
+     */
+    private void createSampleVideoFile(File folder, String fileName) {
+        File file = new File(folder, fileName);
+        try {
+            if (!file.exists()) {
+                try (FileOutputStream fos = new FileOutputStream(file)) {
+                    // สร้างไฟล์ว่างเพื่อจำลองไฟล์วิดีโอ
+                    fos.write("Sample video file for testing".getBytes());
+                }
+                Log.d(TAG, "สร้างไฟล์วิดีโอ " + fileName + " สำเร็จ");
+            } else {
+                Log.d(TAG, "ไฟล์วิดีโอ " + fileName + " มีอยู่แล้ว");
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "เกิดข้อผิดพลาดในการสร้างไฟล์วิดีโอ " + fileName, e);
+        }
     }
 
     /**
